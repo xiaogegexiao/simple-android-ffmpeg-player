@@ -1,0 +1,166 @@
+plugins {
+    id "com.jfrog.bintray" version "1.7.3"
+}
+apply plugin: 'com.android.library'
+
+ext {
+    snapshot = true
+    libraryVersionCode = 1
+    libraryVersion = '1.0.0'
+    if (snapshot) {
+        libraryVersion = "$libraryVersion-SNAPSHOT"
+    }
+
+    siteUrl = POM_URL
+    gitUrl = POM_SCM_URL
+
+    developerId = POM_DEVELOPER_ID
+    developerName = POM_DEVELOPER_NAME
+    developerEmail = POM_DEVELOPER_EMAIL
+
+    licenseName = 'The Apache Software License, Version 2.0'
+    licenseUrl = 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+    allLicenses = ["Apache-2.0"]
+}
+android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    compileSdkVersion rootProject.ext.compileSdkVersion
+    buildToolsVersion rootProject.ext.buildToolsVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode libraryVersionCode
+        versionName libraryVersion
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+        // This block is different from the one you use to link Gradle
+        // to your CMake or ndk-build script.
+        externalNativeBuild {
+            // For ndk-build, instead use the ndkBuild block.
+            cmake {
+                // Passes optional arguments to CMake.
+                arguments "-DANDROID_ARM_NEON=TRUE", '-DANDROID_PLATFORM=android-21', "-DANDROID_TOOLCHAIN=clang"
+                // Sets a flag to enable format macro constants for the C compiler.
+                cFlags "-D__STDC_FORMAT_MACROS"
+                // Sets optional flags for the C++ compiler.
+                cppFlags "-fexceptions", "-frtti"
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.android.support:appcompat-v7:27.1.0'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+    compile "org.jetbrains.kotlin:kotlin-reflect:1.2.30"
+}
+
+apply plugin: 'maven-publish'
+
+def isSnapshot() {
+    return libraryVersion.contains("SNAPSHOT") == true
+}
+
+task sourceJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier "sources"
+}
+
+//Bintray
+bintray {
+    user = getBintrayUsername()
+    key = getBintrayKey()
+    publish = true
+    override = isSnapshot()
+    publications = ['Nostalgia']
+
+    pkg {
+        repo = BINTRAY_REPO
+        name = POM_ARTIFACT_ID
+        userOrg = getBintrayUserOrg()
+        licenses = allLicenses
+        vcsUrl = gitUrl
+
+        version {
+            name = libraryVersion
+            desc = POM_DESCRIPTION
+            released = new Date()
+            vcsTag = libraryVersion
+            attributes = ['gradle-plugin': 'com.use.less:com.use.less.gradle:gradle-useless-plugin']
+        }
+    }
+}
+
+// Create the pom configuration:
+def pomConfig = {
+    licenses {
+        license {
+            name licenseName
+            url licenseUrl
+            distribution "repo"
+        }
+    }
+    developers {
+        developer {
+            id developerId
+            name developerName
+            email developerEmail
+        }
+    }
+}
+
+publishing {
+    publications {
+        Nostalgia(MavenPublication) {
+            groupId GROUP_ID
+            artifactId POM_ARTIFACT_ID
+            version libraryVersion
+
+            artifact("$buildDir/outputs/aar/Nostalgia-release.aar")
+            artifact(sourceJar)
+
+            pom.withXml {
+                def root = asNode()
+                root.appendNode('name', POM_NAME)
+                root.appendNode('description', POM_DESCRIPTION)
+                root.appendNode('url', siteUrl)
+                root.children().last() + pomConfig
+            }
+        }
+    }
+}
+
+task publishNostalgiaBintray(dependsOn: [':Nostalgia:assemble', ':Nostalgia:generatePomFileForNostalgiaPublication', ':Nostalgia:bintrayUpload']) {
+    tasks.findByPath(':Nostalgia:assemble').mustRunAfter ':Nostalgia:clean'
+    tasks.findByPath(':Nostalgia:generatePomFileForNostalgiaPublication').mustRunAfter ':Nostalgia:assemble'
+    tasks.findByPath(':Nostalgia:bintrayUpload').mustRunAfter ':Nostalgia:generatePomFileForNostalgiaPublication'
+}
+
+configure([publishNostalgiaBintray]) {
+    group = 'Nostalgia'
+}
+repositories {
+    mavenCentral()
+}
