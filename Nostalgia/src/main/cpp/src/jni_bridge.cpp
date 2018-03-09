@@ -20,13 +20,13 @@ extern "C" {
     #define LOGI(...) __android_log_print(4, LOG_TAG, __VA_ARGS__);
     #define LOGE(...) __android_log_print(6, LOG_TAG, __VA_ARGS__);
 
-    int Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instance, jstring streamUrl_, jint pNumOfFrames, jobject callback);
+    int Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instance, jstring streamUrl_, jobject callback);
     void sendBackBitmap(JNIEnv *pEnv, uint8_t * buffer, int bufferSize, int height, int width, jobject callback);
 }
 
 JNIEXPORT int JNICALL
 Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instance,
-                                                              jstring streamUrl_, jint pNumOfFrames, jobject callback) {
+                                                              jstring streamUrl_, jobject callback) {
     const char *streamUrl = env->GetStringUTFChars(streamUrl_, 0);
 
     AVFormatContext *pFormatCtx = NULL;
@@ -35,6 +35,7 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
     AVCodec         *pCodec = NULL;
     AVFrame         *pFrame = NULL;
     AVFrame         *pFrameRGBA = NULL;
+    AVDictionary    *opts = NULL;
     AVPacket        packet;
     int             frameFinished;
     void* 			buffer;
@@ -51,7 +52,9 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
 
     // Open video stream
     LOGI("video stream: %s\n", streamUrl);
-    int open_result = avformat_open_input(&pFormatCtx, streamUrl, NULL, NULL);
+
+    av_dict_set(&opts, "rtsp_transport", "tcp", 0);
+    int open_result = avformat_open_input(&pFormatCtx, streamUrl, NULL, &opts);
     if(open_result!=0) {
         LOGE("cannot open stream %d", open_result);
         return -1; // Couldn't open video stream
@@ -144,10 +147,6 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
                 sws_scale(sws_ctx, (const uint8_t *const *) pFrame->data, pFrame->linesize, 0,
                           pCodecCtx->height, pFrameRGBA->data, pFrameRGBA->linesize);
                 sendBackBitmap(env, (uint8_t*)buffer, bufferSize, pCodecCtx->height, pCodecCtx->width, callback);
-                // Save the frame to disk
-                if(++i<=pNumOfFrames) {
-//                    SaveFrame(env, instance, bitmap, pCodecCtx->width, pCodecCtx->height, i);
-                }
             }
         }
         // Free th
@@ -185,4 +184,5 @@ void sendBackBitmap(JNIEnv *pEnv, uint8_t * buffer, int bufferSize, int height, 
 
     pEnv->CallVoidMethod(callback, onVideo, height, width, retArray);
     pEnv->DeleteLocalRef(retArray);
+    pEnv->DeleteLocalRef(callbackCls);
 }

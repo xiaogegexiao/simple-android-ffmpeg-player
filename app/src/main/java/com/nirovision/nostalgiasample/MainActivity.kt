@@ -18,22 +18,29 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var mSurfaceView : SurfaceView
     lateinit var mSurfaceHolder: SurfaceHolder
+    var bmp: Bitmap? = null
+    var byteBuffer: ByteBuffer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         mSurfaceView = findViewById(R.id.surface_view)
         mSurfaceHolder = mSurfaceView.holder
+
         Thread(
-                Runnable { JniBridge.getInstance().decodeStream("http://www.sample-videos.com/video/mp4/720/big_buck_bunny_720p_1mb.mp4", 10, object : JniBridge.VideoCallback {
+                Runnable { JniBridge.getInstance().decodeStream("rtsp://admin:@10.20.80.101:80/videoMain", object : JniBridge.VideoCallback {
                     override fun onVideo(height: Int, width: Int, bitmap: ByteArray?) {
-                        Log.d(TAG, "byte array received")
-                        bitmap?.let {
+                        bitmap?.let {byteArray ->
                             var canvas = mSurfaceHolder.lockCanvas()
                             canvas.drawColor(resources.getColor(android.R.color.black))
-                            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                            bmp.copyPixelsFromBuffer(ByteBuffer.wrap(it))
+                            if (bmp == null) {
+                                Log.d(TAG, "create bmp")
+                                bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            }
+                            byteBuffer = ByteBuffer.wrap(byteArray)
+                            bmp?.copyPixelsFromBuffer(byteBuffer)
                             canvas.drawBitmap(bmp, 0f, 0f, Paint())
+                            byteBuffer = null
                             mSurfaceHolder.unlockCanvasAndPost(canvas)
                         }
                     }

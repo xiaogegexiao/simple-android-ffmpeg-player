@@ -27,7 +27,7 @@ public class JniBridge {
         }
         return instance;
     }
-    public native int decodeStream(String streamUrl, int decodeFrameCount, VideoCallback callback);
+    public native int decodeStream(String streamUrl, VideoCallback callback);
 
     private void saveFrameToPath(Bitmap bitmap, String pPath) {
         int BUFFER_SIZE = 1024 * 8;
