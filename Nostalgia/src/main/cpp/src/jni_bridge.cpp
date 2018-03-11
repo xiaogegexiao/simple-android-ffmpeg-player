@@ -22,6 +22,7 @@ extern "C" {
 
     int Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instance, jstring streamUrl_, jobject callback);
     void sendBackBitmap(JNIEnv *pEnv, uint8_t * buffer, int bufferSize, int height, int width, jobject callback);
+    bool keepStreaming(JNIEnv *pEnv, jobject callback);
 }
 
 JNIEXPORT int JNICALL
@@ -134,8 +135,7 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
 
     LOGI("start reading frame");
     // Read frames and save first five frames to disk
-    i=0;
-    while(av_read_frame(pFormatCtx, &packet)>=0) {
+    while(keepStreaming(env, callback) && av_read_frame(pFormatCtx, &packet)>=0) {
         // Is this a packet from the video stream?
         if(packet.stream_index==videoStream) {
             // Decode video frame
@@ -169,6 +169,15 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
     avformat_network_deinit();
     env->ReleaseStringUTFChars(streamUrl_, streamUrl);
     return 0;
+}
+
+bool keepStreaming(JNIEnv *pEnv, jobject callback) {
+    jclass callbackCls = pEnv->GetObjectClass(callback);
+    jmethodID keepStreamingMethod = pEnv->GetMethodID(callbackCls, "keepStreaming", "()Z");
+    jboolean keepStreaming = pEnv->CallBooleanMethod(callback, keepStreamingMethod);
+    bool res = (bool)(keepStreaming == JNI_TRUE);
+    pEnv->DeleteLocalRef(callbackCls);
+    return res;
 }
 
 void sendBackBitmap(JNIEnv *pEnv, uint8_t * buffer, int bufferSize, int height, int width, jobject callback) {

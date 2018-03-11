@@ -49,5 +49,6 @@ public class JniBridge {
 
     public interface VideoCallback {
         void onVideo(int height, int width, byte[] bitmap);
+        boolean keepStreaming();
     }
 }

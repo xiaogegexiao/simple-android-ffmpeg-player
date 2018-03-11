@@ -20,31 +20,64 @@ class MainActivity : AppCompatActivity() {
     lateinit var mSurfaceHolder: SurfaceHolder
     var bmp: Bitmap? = null
     var byteBuffer: ByteBuffer? = null
+    var isStreaming = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         mSurfaceView = findViewById(R.id.surface_view)
         mSurfaceHolder = mSurfaceView.holder
+    }
 
-        Thread(
-                Runnable { JniBridge.getInstance().decodeStream("rtsp://admin:@10.20.80.101:80/videoMain", object : JniBridge.VideoCallback {
-                    override fun onVideo(height: Int, width: Int, bitmap: ByteArray?) {
-                        bitmap?.let {byteArray ->
-                            var canvas = mSurfaceHolder.lockCanvas()
-                            canvas.drawColor(resources.getColor(android.R.color.black))
-                            if (bmp == null) {
-                                Log.d(TAG, "create bmp")
-                                bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    fun stopStreaming() {
+        synchronized(isStreaming) {
+            if (!isStreaming) {
+                Log.d(TAG, "already stopped")
+            } else {
+                isStreaming = false
+            }
+        }
+    }
+
+    fun startStreaming() {
+        synchronized(isStreaming) {
+            isStreaming = true
+            Thread(
+                    Runnable { JniBridge.getInstance().decodeStream("rtsp://admin:@10.20.80.101:80/videoMain", object : JniBridge.VideoCallback {
+                        override fun keepStreaming(): Boolean {
+                            var tempIsStreaming = false
+                            synchronized(isStreaming){
+                                tempIsStreaming = isStreaming
                             }
-                            byteBuffer = ByteBuffer.wrap(byteArray)
-                            bmp?.copyPixelsFromBuffer(byteBuffer)
-                            canvas.drawBitmap(bmp, 0f, 0f, Paint())
-                            byteBuffer = null
-                            mSurfaceHolder.unlockCanvasAndPost(canvas)
+                            return tempIsStreaming
                         }
-                    }
-                }) }
-        ).start()
+
+                        override fun onVideo(height: Int, width: Int, bitmap: ByteArray?) {
+                            bitmap?.let {byteArray ->
+                                var canvas = mSurfaceHolder.lockCanvas()
+                                canvas.drawColor(resources.getColor(android.R.color.black))
+                                if (bmp == null) {
+                                    bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                                }
+                                byteBuffer = ByteBuffer.wrap(byteArray)
+                                bmp?.copyPixelsFromBuffer(byteBuffer)
+                                canvas.drawBitmap(bmp, 0f, 0f, Paint())
+                                byteBuffer = null
+                                mSurfaceHolder.unlockCanvasAndPost(canvas)
+                            }
+                        }
+                    }) }
+            ).start()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startStreaming()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopStreaming()
     }
 }
