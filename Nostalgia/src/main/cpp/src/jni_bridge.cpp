@@ -25,6 +25,11 @@ extern "C" {
     bool keepStreaming(JNIEnv *pEnv, jobject callback);
 }
 
+void my_log_callback(void *ptr, int level, const char *fmt, va_list vargs) {
+    LOGI(fmt, vargs);
+    vprintf(fmt, vargs);
+}
+
 JNIEXPORT int JNICALL
 Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instance,
                                                               jstring streamUrl_, jobject callback) {
@@ -57,7 +62,7 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
     av_dict_set(&opts, "rtsp_transport", "tcp", 0);
     int open_result = avformat_open_input(&pFormatCtx, streamUrl, NULL, &opts);
     if(open_result!=0) {
-        LOGE("cannot open stream %d", open_result);
+        LOGE("cannot open stream %d, %s", open_result, av_err2str(open_result));
         return -1; // Couldn't open video stream
     }
 
@@ -157,6 +162,8 @@ Java_com_nirovision_nostalgia_JniBridge_decodeStream(JNIEnv *env, jobject instan
 
     // Free the RGB image
     av_free(pFrameRGBA);
+
+    av_free(opts);
 
     // Free the YUV frame
     av_free(pFrame);

@@ -12,6 +12,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 \
 include_directories(.)
 include_directories(
     include/ffmpeg
+    include/openssl
     )
 
 add_library(libavfilter STATIC
@@ -62,6 +63,18 @@ set_target_properties(libswresample PROPERTIES
     IMPORTED_LOCATION
     ${lib_dir}/libswresample.a)
 
+add_library(libcrypto STATIC
+    IMPORTED)
+set_target_properties(libcrypto PROPERTIES
+    IMPORTED_LOCATION
+    ${lib_dir}/libcrypto.a)
+
+add_library(libssl STATIC
+    IMPORTED)
+set_target_properties(libssl PROPERTIES
+    IMPORTED_LOCATION
+    ${lib_dir}/libssl.a)
+
 add_library(nativeNiroFfmpeg SHARED
     src/jni_bridge.cpp
     )
@@ -75,6 +88,8 @@ target_link_libraries(nativeNiroFfmpeg
     libpostproc
     libavdevice
     libswresample
+    libssl
+    libcrypto
     -ljnigraphics
     log
     m
