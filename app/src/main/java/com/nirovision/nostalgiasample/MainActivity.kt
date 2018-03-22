@@ -47,7 +47,7 @@ class MainActivity : AppCompatActivity() {
         synchronized(isStreaming) {
             isStreaming = true
             Thread(
-                    Runnable { JniBridge.getInstance().decodeStream(HTTPS_LIVE_URL, object : JniBridge.VideoCallback {
+                    Runnable { JniBridge.getInstance().decodeStream(LOCAL_LIVE_URL, object : JniBridge.VideoCallback {
                         override fun keepStreaming(): Boolean {
                             var tempIsStreaming = false
                             synchronized(isStreaming){
